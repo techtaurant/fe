@@ -3,12 +3,10 @@ import type {
   FetchOpenLinksParams,
   LinkContent,
   LinkListResult,
-  LinkStatsItem,
   LinkTag,
   OpenLinkDetailResponse,
   OpenLinkItem,
   OpenLinkListResponse,
-  OpenLinkStatsResponse,
   UserProfileImageListResponse,
   UserSearchResponse,
 } from "./types";
@@ -187,54 +185,6 @@ async function fetchOpenApi<T>(path: string, params?: URLSearchParams): Promise<
   return (await response.json()) as T;
 }
 
-function createLinkStatsMap(stats: LinkStatsItem[]): Map<string, LinkStatsItem> {
-  const statsMap = new Map<string, LinkStatsItem>();
-
-  stats.forEach((stat) => {
-    const linkId = normalizeString(stat.linkId);
-    if (linkId) {
-      statsMap.set(linkId, stat);
-    }
-  });
-
-  return statsMap;
-}
-
-function mergeLinkStats(
-  links: LinkContent[],
-  statsMap: Map<string, LinkStatsItem>,
-): LinkContent[] {
-  return links.map((link) => {
-    const stats = statsMap.get(link.id);
-
-    return {
-      ...link,
-      viewCount: normalizeCount(stats?.viewCount) ?? 0,
-      likeCount: normalizeCount(stats?.likeCount) ?? 0,
-      saveCount: normalizeCount(stats?.saveCount) ?? 0,
-    };
-  });
-}
-
-async function fetchLinkStatsMap(linkIds: string[]): Promise<Map<string, LinkStatsItem>> {
-  const uniqueLinkIds = Array.from(new Set(linkIds.filter(Boolean))).slice(0, 100);
-  if (uniqueLinkIds.length === 0) return new Map();
-
-  const searchParams = new URLSearchParams();
-  uniqueLinkIds.forEach((linkId) => {
-    searchParams.append("linkIds", linkId);
-  });
-
-  const result = await fetchOpenApi<OpenLinkStatsResponse>(
-    "/open-api/links/stats",
-    searchParams,
-  ).catch(() => null);
-
-  if (!result?.data) return new Map();
-
-  return createLinkStatsMap(result.data);
-}
-
 export async function fetchOpenLinks(
   params: FetchOpenLinksParams = {},
 ): Promise<LinkListResult> {
@@ -263,17 +213,15 @@ export async function fetchOpenLinks(
   if (params.period) searchParams.set("period", params.period);
   if (params.sort) searchParams.set("sort", params.sort);
 
-  const result = await fetchOpenApi<OpenLinkListResponse>("/open-api/v1/links", searchParams);
+  const result = await fetchOpenApi<OpenLinkListResponse>("/open-api/links", searchParams);
   const links = result.data.content.map(normalizeLinkContent).filter((link) => link.id && link.url);
   const nextCursor = result.data.nextCursor ?? undefined;
-  const statsMap = await fetchLinkStatsMap(links.map((link) => link.id));
-  const linksWithStats = mergeLinkStats(links, statsMap);
   const profileMap = await fetchSourceCompanyProfileMap(
-    getUniqueSourceCompanyUserIds(linksWithStats),
+    getUniqueSourceCompanyUserIds(links),
   );
 
   return {
-    links: applySourceCompanyProfiles(linksWithStats, profileMap),
+    links: applySourceCompanyProfiles(links, profileMap),
     nextCursor,
     hasNext: result.data.hasNext ?? Boolean(nextCursor),
     size: result.data.size ?? params.size ?? 20,
@@ -293,8 +241,6 @@ export async function fetchOpenLinkDetail(linkId: string): Promise<LinkContent> 
   const profileMap = await fetchSourceCompanyProfileMap(
     getUniqueSourceCompanyUserIds([link]),
   );
-  const statsMap = await fetchLinkStatsMap([link.id]);
-  const linkWithStats = mergeLinkStats([link], statsMap)[0] ?? link;
 
-  return applySourceCompanyProfiles([linkWithStats], profileMap)[0] ?? linkWithStats;
+  return applySourceCompanyProfiles([link], profileMap)[0] ?? link;
 }

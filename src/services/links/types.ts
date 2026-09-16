@@ -50,12 +50,6 @@ export interface OpenLinkDetailResponse {
   message?: string;
 }
 
-export interface OpenLinkStatsResponse {
-  status: number;
-  data: LinkStatsItem[];
-  message?: string;
-}
-
 export interface LinkListResult {
   links: LinkContent[];
   nextCursor?: string;
@@ -123,13 +117,6 @@ export interface OpenLinkItem {
   likeStatus?: LinkLikeStatus | null;
   isSaved?: boolean | null;
   isRead?: boolean | null;
-}
-
-export interface LinkStatsItem {
-  linkId?: string | null;
-  viewCount?: number | null;
-  likeCount?: number | null;
-  saveCount?: number | null;
 }
 
 export interface UserProfileImageItem {
