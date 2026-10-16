@@ -28,6 +28,9 @@
     "dev": {
       "name": "techtaurant-dev",
       "workers_dev": false,
+      "placement": {
+        "region": "aws:ap-northeast-2",
+      },
       "routes": [
         {
           "pattern": "dev.techtaurant.com",
